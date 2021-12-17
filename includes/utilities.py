@@ -6,13 +6,17 @@ def process_citibike_data(dataframe):
   return (
     dataframe
       .select(
-        from_unixtime("tripduration", "HH:mm:ss").alias("duration"),
-        dayofweek(col("starttime")).alias("DoW"),
+        (col("tripduration")/60).alias("tripduration_min"),
         to_timestamp(col("starttime")).alias("starttime"),
         to_timestamp(col("stoptime")).alias("endtime"),
+        to_date(col("starttime")).alias("date"),
         "startID",
+        "startlat",
+        "startlon",
         "endID",
-        (3959 * 2 * asin(sqrt(sin((radians(col('startlat').cast("float")) - radians(col('startlat').cast("float")))/2)**2 + cos(radians(col('endlat').cast("float"))) * cos(radians(col('startlat').cast("float"))) * sin((radians(col('startlon').cast("float")) - radians(col('endlon').cast("float")))/2)**2))).alias("startend_distance"),
+        "endlat",
+        "endlon",
+        (3959 * 2 * asin(sqrt(sin((radians(col('startlat').cast("float")) - radians(col('startlat').cast("float")))/2)**2 + cos(radians(col('endlat').cast("float"))) * cos(radians(col('startlat').cast("float"))) * sin((radians(col('startlon').cast("float")) - radians(col('endlon').cast("float")))/2)**2))).alias("distance_start-end"),
         "bikeid",
         "usertype",
         "userbirth",
