@@ -18,6 +18,7 @@ s3Path = "s3a://{0}:{1}@{2}".format("AKIAVPSFD5OHVN5FJMWQ",
                                     "citibike-capstone-hadar")
 mntPath     = "/mnt/data/"
 dailyPath   = projectPath + "daily/"
+unionPath   = projectPath + "union/"
 aggPath     = projectPath + "agg/"
 
 # COMMAND ----------
