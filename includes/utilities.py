@@ -1,5 +1,6 @@
 # Databricks notebook source
 from pyspark.sql.functions import *
+import pandas as pd
 
 def recieve_data(filepath):
     df = (spark.read.format('parquet').load(filepath))
@@ -38,7 +39,7 @@ def load_delta_table(dataframe,delta_table_path) -> bool:
 
 def process_file(filename, path):
     """
-    0. check if table exists
+    (0. check if table exists)
     1. read parquet file
     2. transform columns
     3. load as delta table
@@ -48,17 +49,38 @@ def process_file(filename, path):
 #     spark.sql(f"""
 #     )
     
-    table_name = filename.split('/')[-1].replace('-','')[0:6] + '_table'
+    tablename = filename.split('/')[-1].replace('-','')[0:6] + '_table'
     
     load_delta_table(process_citibike_data(recieve_data(filename)),path)
     
     spark.sql(f"""
-    CREATE TABLE {table_name}
+    CREATE TABLE {tablename}
     USING DELTA
     LOCATION "{path}"
     """)
 
-
-# COMMAND ----------
-
-
+    
+def createunionalltable(databasename, path):
+    """
+    (0. check if table exists)
+    1. read tables
+    2. union all
+    3. load as delta table
+    4. register table in metastore
+    """
+        
+    dfs = []
+    
+    for item in spark.sql(f"USE {databasename}"):
+        df = spark.sql("SELECT * FROM {database}.{item}")
+        dfs.append(df)
+        
+    combined = pd.concat(dfs)
+    
+    tablename = 'union_table' #+ database
+    
+    spark.sql(f"""
+    CREATE TABLE {tablename}
+    USING DELTA
+    LOCATION "{path}"
+    """)
