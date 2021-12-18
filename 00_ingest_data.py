@@ -29,22 +29,9 @@ display(dbutils.fs.ls(mntPath))
 
 # COMMAND ----------
 
-filepath = mntPath + "202101-citibike-tripdata.parquet"
-df = (spark.read.format('parquet').load(filepath))
-filepath = mntPath + "station_info.parquet"
-stations = (spark.read.format('parquet').load(filepath))
-
-# COMMAND ----------
-
-processedDF = process_citibike_data(df)
-
-# COMMAND ----------
-
-processedDF.toPandas().head()
-
-# COMMAND ----------
-
-display(processedDF.select("startlat","startlon","endlat","endlon"))
+for item in dbutils.fs.ls(mntPath):
+    if item.path.endswith('data.parquet'):
+        process_file(item.path, dailyPath)
 
 # COMMAND ----------
 

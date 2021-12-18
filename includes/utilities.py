@@ -1,15 +1,19 @@
 # Databricks notebook source
 from pyspark.sql.functions import *
-from pyspark.sql.types import FloatType
+
+def recieve_data(filepath):
+    df = (spark.read.format('parquet').load(filepath))
+    return df
 
 def process_citibike_data(dataframe):
-  return (
+    return (
     dataframe
       .select(
         (col("tripduration")/60).alias("tripduration_min"),
         to_timestamp(col("starttime")).alias("starttime"),
         to_timestamp(col("stoptime")).alias("endtime"),
         to_date(col("starttime")).alias("date"),
+        dayofweek(col("starttime")).alias("day"),
         "startID",
         "startlat",
         "startlon",
@@ -24,3 +28,37 @@ def process_citibike_data(dataframe):
         "usergender"
     )
   )
+
+
+def load_delta_table(dataframe,delta_table_path) -> bool:
+    "Load a parquet file as a Delta table."
+    dataframe.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage').save(delta_table_path)
+    return True
+
+
+def process_file(filename, path):
+    """
+    0. check if table exists
+    1. read parquet file
+    2. transform columns
+    3. load as delta table
+    4. register table in metastore
+    """
+
+#     spark.sql(f"""
+#     )
+    
+    table_name = filename.split('/')[-1].replace('-','')[0:6] + '_table'
+    
+    load_delta_table(process_citibike_data(recieve_data(filename)),path)
+    
+    spark.sql(f"""
+    CREATE TABLE {table_name}
+    USING DELTA
+    LOCATION "{path}"
+    """)
+
+
+# COMMAND ----------
+
+
