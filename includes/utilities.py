@@ -8,6 +8,7 @@ def recieve_data(filepath):
     df = df.withColumn("usergender", when(df.usergender == 0,"unknown") \
       .when(df.usergender == 1,"male") \
       .when(df.usergender == 2,"female"))
+    df = df.na.drop()
     return df
 
 def process_citibike_data(dataframe):
@@ -38,15 +39,13 @@ def process_citibike_data(dataframe):
 
 def load_delta_table(dataframe,delta_table_path) -> bool:
     "Load a parquet file as a Delta table."
-    dataframe.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage').save(delta_table_path)
+    dataframe.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage_bin').save(delta_table_path)
     return True
 
 
 ## CREATE BINS FOR AGE
 def categorizer(age):
-    if age == 0:
-        return "null"
-    elif age < 33:
+    if age < 33:
         return "young"
     elif age < 55:
         return "mid"
@@ -74,7 +73,6 @@ def process_file(filename, path):
 
     
     df = process_citibike_data(recieve_data(filename))
-    df = df.na.fill(value=0,subset=["userage"])
     agebin_udf = udf(categorizer, StringType())
     df = df.withColumn("userage_bin", agebin_udf("userage"))
 
@@ -136,7 +134,7 @@ def uniondeltatable(tablename, path):
     for item in dfs:
         unionDF = unionDF.union(item)
     
-    unionDF.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage').save(unionPath)
+    unionDF.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage_bin').save(unionPath)
 
     spark.sql(f"""
     CREATE TABLE {tablename}
