@@ -3,6 +3,8 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import pandas as pd
 
+########### FUNCTIONS FOR DATA PROCESSING #####################
+
 def recieve_data(filepath):
     df = (spark.read.format('parquet').load(filepath))
     df = df.withColumn("usergender", when(df.usergender == 0,"unknown") \
@@ -18,19 +20,19 @@ def process_citibike_data(dataframe):
         (col("tripduration")/60).alias("tripduration_min"),
         to_timestamp(col("starttime")).alias("starttime"),
         to_timestamp(col("stoptime")).alias("endtime"),
-        to_date(col("starttime")).alias("date"),
-        dayofweek(col("starttime")).alias("weekday_id"),
-        date_format(col("starttime"), "EEEE").alias("weekday"),
+#         to_date(col("starttime")).alias("date"),
+#         dayofweek(col("starttime")).alias("weekday_id"),
+#         date_format(col("starttime"), "EEEE").alias("weekday"),
         "startID",
-#         "startlat",
-#         "startlon",
+        "startlat",
+        "startlon",
         "endID",
-#         "endlat",
-#         "endlon",
+        "endlat",
+        "endlon",
         (3959 * 2 * asin(sqrt(sin((radians(col('startlat').cast("float")) - radians(col('startlat').cast("float")))/2)**2 + cos(radians(col('endlat').cast("float"))) * cos(radians(col('startlat').cast("float"))) * sin((radians(col('startlon').cast("float")) - radians(col('endlon').cast("float")))/2)**2))).alias("distance_start-end"),
 #         "bikeid",
         "usertype",
-        "userbirth",
+#         "userbirth",
         (year(col("starttime")) - col('userbirth')).alias("userage"),
         "usergender"
     )
@@ -54,7 +56,7 @@ def categorizer(age):
     else: 
         return None
 
-
+############## PROCESS ONE FILE INTO DELTA TABLE ####################
 
 def process_file(filename, path):
     """
@@ -73,13 +75,10 @@ def process_file(filename, path):
 
     
     df = process_citibike_data(recieve_data(filename))
-    df = df.na.drop()
     agebin_udf = udf(categorizer, StringType())
     df = df.withColumn("userage_bin", agebin_udf("userage"))
-
-    #### LAT-LON REGION CATEGORY COLUMN ####
-    
-    
+    df = df.na.drop()
+        
     load_delta_table(df,path)
     
     spark.sql(f"""
@@ -88,8 +87,10 @@ def process_file(filename, path):
     LOCATION "{path}"
     """)
 
+
+############### CREATE FULL UNION DELTA TABLE #######################
     
-def uniondeltatable(tablename, path):
+def union_table(tablename, path):
     """
     0. drop table if table exists
     1. read parquet file
@@ -108,15 +109,18 @@ def uniondeltatable(tablename, path):
         if file.endswith('data.parquet'):
             df = recieve_data(file)
             df = process_citibike_data(df)
+            df = df.na.drop()
+            agebin_udf = udf(categorizer, StringType())
+            df = df.withColumn("userage_bin", agebin_udf("userage"))
             dfs.append(df)
-
             
     schema = StructType([
       StructField('tripduration_min', DoubleType(), True),
       StructField('starttime', TimestampType(), True),
       StructField('endtime', TimestampType(), True),
-      StructField('date', DateType(), True),
-      StructField('day', IntegerType(), True),
+#       StructField('date', DateType(), True),
+#       StructField('weekday_id', IntegerType(), True),
+#       StructField('weekday', StringType(), True),
       StructField('startID', LongType(), True),
       StructField('startlat', DoubleType(), True),
       StructField('startlon', DoubleType(), True),
@@ -124,21 +128,22 @@ def uniondeltatable(tablename, path):
       StructField('endlat', DoubleType(), True),
       StructField('endlon', DoubleType(), True),
       StructField('distance_start-end', DoubleType(), True),
-      StructField('bikeid', LongType(), True),
+    #   StructField('bikeid', LongType(), True),
       StructField('usertype', StringType(), True),
-      StructField('userbirth', LongType(), True),
+    #   StructField('userbirth', LongType(), True),
       StructField('userage', LongType(), True),
-      StructField('usergender', LongType(), True)
+      StructField('usergender', LongType(), True),
+      StructField('userage_bin', StringType(), True)
     ])
-
     unionDF = spark.createDataFrame([],schema)
+
     for item in dfs:
         unionDF = unionDF.union(item)
-    
+        unionDF = unionDF.na.drop()
     unionDF.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage_bin').save(unionPath)
 
     spark.sql(f"""
     CREATE TABLE {tablename}
     USING DELTA
-    LOCATION {path}
+    LOCATION "{path}"
     """)
