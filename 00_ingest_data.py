@@ -43,7 +43,9 @@ dfs = []
 for item in dbutils.fs.ls(mntPath):
     file = item.path
     if file.endswith('data.parquet'):
-        df = process_citibike_data(recieve_data(file))
+        df = recieve_data(file)
+        df = process_citibike_data(df)
+        df = df.na.drop()
         agebin_udf = udf(categorizer, StringType())
         df = df.withColumn("userage_bin", agebin_udf("userage"))
         dfs.append(df)
@@ -69,41 +71,17 @@ schema = StructType([
   StructField('usergender', LongType(), True),
   StructField('userage_bin', StringType(), True)
 ])
-
-# COMMAND ----------
-
 unionDF = spark.createDataFrame([],schema)
 
 for item in dfs:
     unionDF = unionDF.union(item)
-    
 unionDF.write.format("delta").mode("overwrite").option("overwriteSchema", "true").partitionBy('userage_bin').save(unionPath)
-
 spark.sql(f"""
-DROP TABLE IF EXISTS {citibike_full2}
+DROP TABLE IF EXISTS citibike_full
 """)
 
 spark.sql(f"""
-CREATE TABLE citibike_full2
+CREATE TABLE citibike_full
 USING DELTA
 LOCATION "{unionPath}"
 """)
-
-# COMMAND ----------
-
-df = (spark.read.format('parquet').load("dbfs:/mnt/data/202101-citibike-tripdata.parquet"))
-df = process_citibike_data(df) 
-
-# COMMAND ----------
-
-display(df.groupBy('usertype','usergender','userage','weekday','weekday_id').count().orderBy('count'))
-
-# COMMAND ----------
-
-agebin_udf = udf(categorizer, StringType())
-df = df.withColumn("userage_bin", agebin_udf("userage"))
-df.groupBy('userage_bin').count().show()
-
-# COMMAND ----------
-
-

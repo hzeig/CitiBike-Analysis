@@ -52,7 +52,7 @@ def categorizer(age):
     elif age < 100:
         return "senior"
     else: 
-        return "false"
+        return None
 
 
 
@@ -73,6 +73,7 @@ def process_file(filename, path):
 
     
     df = process_citibike_data(recieve_data(filename))
+    df = df.na.drop()
     agebin_udf = udf(categorizer, StringType())
     df = df.withColumn("userage_bin", agebin_udf("userage"))
 
