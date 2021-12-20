@@ -19,6 +19,8 @@ s3Path = "s3a://{0}:{1}@{2}".format("AKIAVPSFD5OHVN5FJMWQ",
 mntPath     = "/mnt/data/"
 dailyPath   = projectPath + "daily/"
 unionPath   = projectPath + "union/"
+userPath    = projectPath + "user/"
+locatPath   = projectPath + "locat/"
 aggPath     = projectPath + "agg/"
 
 # COMMAND ----------
