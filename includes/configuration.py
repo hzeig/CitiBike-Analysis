@@ -13,8 +13,8 @@ experiment_id = 3260145608445930
 # COMMAND ----------
 
 projectPath = f"/CitiBike/{username}/data/"
-s3Path = "s3a://{0}:{1}@{2}".format("AKIAVPSFD5OHVN5FJMWQ",
-                                    "ZMe70t9oyebrmBgopaPNtvcdXDolAnmR3Rtsax3I", 
+s3Path = "s3a://{0}:{1}@{2}".format([ACCESS KEY],
+                                    [SECRET KEY], 
                                     "citibike-capstone-hadar")
 mntPath     = "/mnt/data/"
 dailyPath   = projectPath + "daily/"
